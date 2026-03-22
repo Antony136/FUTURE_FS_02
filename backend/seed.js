@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
 import Lead from "./models/Lead.js";
+import User from "./models/User.js";
 
 dotenv.config();
 
@@ -43,7 +45,6 @@ const noteTexts = [
   "Verbal confirmation received.",
 ];
 
-// Spread leads across last 6 months
 const randomDateInMonth = (monthsAgo) => {
   const date = new Date();
   date.setMonth(date.getMonth() - monthsAgo);
@@ -57,18 +58,13 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 const generateLeads = () => {
   const leads = [];
-
-  // Distribute ~5 leads per month across 6 months
   for (let monthsAgo = 5; monthsAgo >= 0; monthsAgo--) {
-    const countThisMonth = Math.floor(Math.random() * 6) + 12; // 12–17 leads per month
-
+    const countThisMonth = Math.floor(Math.random() * 6) + 12;
     for (let i = 0; i < countThisMonth; i++) {
       const name = pick(names);
       const email = `${name.split(" ")[0].toLowerCase()}${Math.floor(Math.random() * 999)}@example.com`;
       const status = pick(statuses);
       const createdAt = randomDateInMonth(monthsAgo);
-
-      // Add notes only if contacted or converted
       const notes = [];
       if (status === "contacted" || status === "converted") {
         const noteCount = Math.floor(Math.random() * 3) + 1;
@@ -82,7 +78,6 @@ const generateLeads = () => {
           });
         }
       }
-
       leads.push({
         name,
         email,
@@ -95,30 +90,50 @@ const generateLeads = () => {
       });
     }
   }
-
   return leads;
 };
+
+// ── Admin accounts to seed ────────────────────────────────────
+const admins = [
+  { name: "Antony",   email: "icebox1306@gmail.com", password: "1234" },
+  { name: "Test User", email: "test@gmail.com",       password: "1234" },
+];
 
 const seed = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected");
+    console.log("MongoDB connected\n");
 
-    // Clear existing leads
+    // ── Seed admins ───────────────────────────────────────────
+    console.log("Seeding admin accounts...");
+    await User.deleteMany({});
+
+    for (const admin of admins) {
+      const salt = await bcrypt.genSalt(10);
+      const hashed = await bcrypt.hash(admin.password, salt);
+      await User.create({
+        name:     admin.name,
+        email:    admin.email,
+        password: hashed,
+        role:     "admin",
+      });
+      console.log(`  ✓ ${admin.email}`);
+    }
+
+    // ── Seed leads ────────────────────────────────────────────
+    console.log("\nSeeding leads...");
     await Lead.deleteMany({});
-    console.log("Existing leads cleared");
 
     const leads = generateLeads();
-
-    // Use insertMany with timestamps disabled so our custom dates are preserved
     await Lead.insertMany(leads, { timestamps: false });
+    console.log(`  ✓ ${leads.length} leads inserted`);
 
-    console.log(`${leads.length} leads seeded successfully`);
-
-    // Print a summary
+    // ── Summary ───────────────────────────────────────────────
     const byMonth = {};
     leads.forEach((l) => {
-      const key = l.createdAt.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+      const key = l.createdAt.toLocaleDateString("en-IN", {
+        month: "short", year: "2-digit",
+      });
       byMonth[key] = (byMonth[key] || 0) + 1;
     });
 
@@ -130,6 +145,11 @@ const seed = async () => {
     console.log("\nStatus breakdown:");
     ["new", "contacted", "converted"].forEach((s) => {
       console.log(`  ${s}: ${leads.filter((l) => l.status === s).length}`);
+    });
+
+    console.log("\nAdmin accounts:");
+    admins.forEach((a) => {
+      console.log(`  email: ${a.email}  |  password: ${a.password}`);
     });
 
   } catch (err) {
