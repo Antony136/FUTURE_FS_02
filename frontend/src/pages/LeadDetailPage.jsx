@@ -2,19 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import API from "../api/axios";
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    new: "bg-blue-50 text-blue-600",
-    contacted: "bg-yellow-50 text-yellow-600",
-    converted: "bg-green-50 text-green-600",
-  };
-  return (
-    <span className={`text-xs font-medium px-3 py-1 rounded-full ${styles[status]}`}>
-      {status}
-    </span>
-  );
-};
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, User, Mail, Phone, Calendar, RefreshCw, Send, MessageSquarePlus, Activity } from "lucide-react";
+import toast from "react-hot-toast";
+import { StatusBadge } from "./DashboardPage";
 
 const LeadDetailPage = () => {
   const { id } = useParams();
@@ -34,6 +25,7 @@ const LeadDetailPage = () => {
         setLead(data);
       } catch (err) {
         setError("Lead not found.");
+        toast.error("Lead not found");
       } finally {
         setLoading(false);
       }
@@ -47,8 +39,9 @@ const LeadDetailPage = () => {
     try {
       const { data } = await API.patch(`/leads/${id}/status`, { status });
       setLead(data.lead ?? data);
+      toast.success("Status updated to " + status);
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to update status");
     } finally {
       setUpdatingStatus(false);
     }
@@ -63,17 +56,18 @@ const LeadDetailPage = () => {
       });
       setLead(data.lead ?? data);
       setNoteText("");
+      toast.success("Note added");
     } catch (err) {
-      console.error(err);
+      toast.error("Failed to add note");
     } finally {
       setAddingNote(false);
     }
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
-      day: "numeric",
+    return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
+      day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
@@ -82,24 +76,35 @@ const LeadDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
         <Navbar />
-        <p className="text-center text-gray-400 text-sm mt-20">Loading lead...</p>
+        <div className="max-w-5xl mx-auto px-6 py-12">
+          <div className="animate-pulse space-y-8">
+            <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-32" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+              <div className="md:col-span-2 h-96 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error || !lead) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
         <Navbar />
-        <div className="text-center mt-20">
-          <p className="text-gray-500 text-sm mb-4">{error}</p>
+        <div className="flex flex-col items-center justify-center py-32 px-4">
+          <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+            <User className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">{error}</h2>
           <button
             onClick={() => navigate("/leads")}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
           >
-            Back to leads
+            <ArrowLeft className="w-4 h-4" /> Back to leads
           </button>
         </div>
       </div>
@@ -107,134 +112,212 @@ const LeadDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 overflow-x-hidden pb-12">
       <Navbar />
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        
+        {/* Navigation */}
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <button
+            onClick={() => navigate("/leads")}
+            className="group flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 mb-8 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Leads
+          </button>
+        </motion.div>
 
-        {/* Back button */}
-        <button
-          onClick={() => navigate("/leads")}
-          className="text-sm text-gray-500 hover:text-blue-600 mb-6 flex items-center gap-1 transition-colors"
-        >
-          ← Back to leads
-        </button>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {/* Left column — Lead info */}
-          <div className="md:col-span-1 space-y-4">
-
-            {/* Lead card */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-800">{lead.name}</h2>
-                <StatusBadge status={lead.status} />
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Email</p>
-                  <p className="text-gray-700">{lead.email}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          {/* Left Column: Info & Status */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="md:col-span-1 flex flex-col gap-6"
+          >
+            {/* Profile Card */}
+            <div className="glass-card rounded-2xl p-6 shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 pointer-events-none" />
+              
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-md">
+                    {lead.name.charAt(0).toUpperCase()}
+                  </div>
+                  <StatusBadge status={lead.status} />
                 </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Phone</p>
-                  <p className="text-gray-700">{lead.phone || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Source</p>
-                  <p className="text-gray-700">{lead.source}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Added on</p>
-                  <p className="text-gray-700">{formatDate(lead.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Last updated</p>
-                  <p className="text-gray-700">{formatDate(lead.updatedAt)}</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Status update card */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <p className="text-sm font-semibold text-gray-700 mb-3">
-                Update status
-              </p>
-              <select
-                value={lead.status}
-                onChange={handleStatusChange}
-                disabled={updatingStatus}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="new">New</option>
-                <option value="contacted">Contacted</option>
-                <option value="converted">Converted</option>
-              </select>
-              {updatingStatus && (
-                <p className="text-xs text-gray-400 mt-2">Updating...</p>
-              )}
-            </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6">
+                  {lead.name}
+                </h2>
 
-          </div>
-
-          {/* Right column — Notes */}
-          <div className="md:col-span-2">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">
-                Notes & follow-ups
-                <span className="ml-2 text-xs font-normal text-gray-400">
-                  {lead.notes.length} note{lead.notes.length !== 1 ? "s" : ""}
-                </span>
-              </h3>
-
-              {/* Add note input */}
-              <div className="flex gap-2 mb-6">
-                <input
-                  type="text"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddNote()}
-                  placeholder="Add a follow-up note..."
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={handleAddNote}
-                  disabled={addingNote || !noteText.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm px-4 py-2.5 rounded-lg transition-colors"
-                >
-                  {addingNote ? "Adding..." : "Add"}
-                </button>
-              </div>
-
-              {/* Notes list */}
-              {lead.notes.length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
-                  <p className="text-sm">No notes yet.</p>
-                  <p className="text-xs mt-1">
-                    Add your first follow-up note above.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {[...lead.notes].reverse().map((note) => (
-                    <div
-                      key={note._id}
-                      className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3"
-                    >
-                      <p className="text-sm text-gray-700">{note.text}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatDate(note.createdAt)}
-                      </p>
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <Mail className="w-5 h-5 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Email</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 break-all">{lead.email}</p>
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex gap-3">
+                    <Phone className="w-5 h-5 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Phone</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{lead.phone || "Not provided"}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Activity className="w-5 h-5 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Source</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 capitalize">{lead.source}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Calendar className="w-5 h-5 text-slate-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Created</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{formatDate(lead.createdAt)}</p>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
 
+            {/* Status Update Card */}
+            <div className="glass-card rounded-2xl p-6 shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 mb-4">
+                <RefreshCw className={`w-5 h-5 text-blue-500 ${updatingStatus ? "animate-spin" : ""}`} />
+                <h3 className="font-semibold text-slate-800 dark:text-white">Update Status</h3>
+              </div>
+              
+              <div className="relative">
+                <select
+                  value={lead.status}
+                  onChange={handleStatusChange}
+                  disabled={updatingStatus}
+                  className="w-full appearance-none pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer disabled:opacity-50 transition-all shadow-sm"
+                >
+                  <option value="new">🆕 New Lead</option>
+                  <option value="contacted">📞 Contacted</option>
+                  <option value="converted">✅ Converted</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                  {updatingStatus ? (
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+          </motion.div>
+
+
+          {/* Right Column: Timeline & Notes */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="md:col-span-2 flex flex-col h-[calc(100vh-140px)] min-h-[500px]"
+          >
+            <div className="glass-card rounded-2xl shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+              
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquarePlus className="w-5 h-5 text-blue-500" />
+                  <h3 className="font-semibold text-slate-800 dark:text-white">Notes Timeline</h3>
+                </div>
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold px-3 py-1 rounded-full">
+                  {lead.notes.length} entries
+                </span>
+              </div>
+
+              {/* Chat/Timeline Area */}
+              <div className="flex-1 p-6 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/20 relative">
+                {lead.notes.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center">
+                    <div className="bg-white dark:bg-slate-800 p-4 rounded-full shadow-sm mb-4">
+                      <MessageSquarePlus className="w-8 h-8 text-blue-400 opacity-80" />
+                    </div>
+                    <p className="font-medium text-slate-600 dark:text-slate-300">No notes yet</p>
+                    <p className="text-sm mt-1 max-w-xs">Record your first interaction or follow-up task below.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 dark:before:via-slate-700 before:to-transparent">
+                    <AnimatePresence>
+                      {[...lead.notes].reverse().map((note, idx) => (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          layout
+                          key={note._id}
+                          className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active"
+                        >
+                          {/* Timeline Dot */}
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10">
+                            <span className="text-xs font-bold">{[...lead.notes].length - idx}</span>
+                          </div>
+                          
+                          {/* Card */}
+                          <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700/50 relative">
+                            {/* Speech bubble arrow */}
+                            <div className="absolute top-4 -left-2 w-4 h-4 bg-white dark:bg-slate-800 border-l border-t border-slate-100 dark:border-slate-700/50 rotate-[-45deg] md:group-even:hidden"></div>
+                            <div className="absolute top-4 -right-2 w-4 h-4 bg-white dark:bg-slate-800 border-r border-b border-slate-100 dark:border-slate-700/50 rotate-[-45deg] hidden md:group-even:block"></div>
+                            
+                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 leading-relaxed">
+                              {note.text}
+                            </p>
+                            <p className="text-[11px] text-slate-400 font-medium">
+                              {formatDate(note.createdAt)}
+                            </p>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+
+              {/* Input Area */}
+              <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-800 z-20">
+                <div className="relative">
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddNote();
+                      }
+                    }}
+                    placeholder="Type a follow-up note... (Press Enter to save)"
+                    className="w-full pl-4 pr-16 py-3 min-h-[56px] max-h-32 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white dark:focus:bg-slate-800 dark:text-white transition-all resize-y shadow-sm"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleAddNote}
+                    disabled={addingNote || !noteText.trim()}
+                    className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg transition-colors"
+                  >
+                    {addingNote ? (
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 ml-0.5" />
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
