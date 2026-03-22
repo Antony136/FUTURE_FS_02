@@ -34,12 +34,12 @@ Mini CRM is a full-stack web application that helps businesses manage incoming l
 
 ## Live Demo
 
-> 🔗 [minicrm.vercel.app](https://minicrm.vercel.app) *(replace with your deployed URL)*
+> 🔗 [minicrm-self.vercel.app](https://minicrm-self.vercel.app)
 
 **Demo credentials:**
 ```
-Email:    admin@minicrm.com
-Password: admin123
+Email:    test@gmail.com
+Password: 1234
 ```
 
 ---
@@ -412,5 +412,3 @@ Building this project gave me hands-on experience with:
 - [ ] Email notifications via SendGrid
 
 ---
-
-<p align="center">Built with ❤️ as a portfolio project — something I can confidently say: <br><em>"I built this system to manage real clients."</em></p>
