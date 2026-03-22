@@ -1,26 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { motion } from "framer-motion";
-import { LogOut, LayoutDashboard, Users, Moon, Sun, Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { LogOut, LayoutDashboard, Users, Menu, X } from "lucide-react";
 import { cn } from "../lib/utils";
+import { ThemeToggle } from "./ThemeToggle";
 
 const Navbar = () => {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isDark, setIsDark] = useState(
-    document.documentElement.classList.contains("dark")
-  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
 
   const handleLogout = () => {
     logout();
@@ -33,22 +23,26 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 glass w-full border-b backdrop-blur-md px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-8">
-        <div
+    <nav className="sticky top-0 z-50 glass w-full border-b border-slate-200/60 dark:border-slate-800/80 backdrop-blur-xl px-4 sm:px-6 py-3.5 flex items-center justify-between shadow-sm shadow-slate-900/[0.03] dark:shadow-black/20">
+      <div className="flex items-center gap-6 md:gap-8">
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => navigate("/dashboard")}
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-2.5 cursor-pointer group"
         >
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-xl group-hover:scale-105 transition-transform shadow-sm">
-            <Users className="w-5 h-5 text-white" />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400 opacity-40 blur-md group-hover:opacity-60 transition-opacity" />
+            <div className="relative bg-gradient-to-br from-violet-600 via-indigo-600 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-violet-500/25 group-hover:shadow-violet-500/40 transition-shadow preserve-3d">
+              <Users className="w-5 h-5 text-white drop-shadow-sm" />
+            </div>
           </div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold text-gradient-brand tracking-tight">
             Mini CRM
           </h1>
-        </div>
-        
-        {/* Desktop Links */}
-        <div className="hidden md:flex items-center gap-2">
+        </motion.div>
+
+        <div className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const isActive = location.pathname.startsWith(link.path);
             const Icon = link.icon;
@@ -57,10 +51,10 @@ const Navbar = () => {
                 key={link.name}
                 onClick={() => navigate(link.path)}
                 className={cn(
-                  "relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300",
+                  "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-300",
                   isActive
-                    ? "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    ? "text-violet-700 dark:text-cyan-300 bg-violet-50/90 dark:bg-cyan-500/10"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -68,8 +62,8 @@ const Navbar = () => {
                 {isActive && (
                   <motion.div
                     layoutId="navbar-indicator"
-                    className="absolute inset-0 border-b-2 border-blue-600 dark:border-blue-400 rounded-xl"
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className="absolute inset-0 rounded-xl border border-violet-200/60 dark:border-cyan-500/25 pointer-events-none"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
               </button>
@@ -78,89 +72,88 @@ const Navbar = () => {
         </div>
       </div>
 
-      <div className="hidden md:flex items-center gap-4">
-        <button
-          onClick={() => setIsDark(!isDark)}
-          className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-        
-        <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
-        
+      <div className="hidden md:flex items-center gap-3">
+        <ThemeToggle />
+
+        <div className="w-px h-7 bg-slate-200/90 dark:bg-slate-700/80" />
+
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white/30 dark:ring-slate-900/50">
             {admin?.name?.charAt(0).toUpperCase() || "A"}
           </div>
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 max-w-[140px] truncate">
             {admin?.name}
           </span>
         </div>
-        
-        <button
+
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleLogout}
-          className="p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 rounded-xl transition-colors ml-2"
+          className="p-2.5 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400 rounded-xl transition-colors ml-1"
           title="Logout"
         >
           <LogOut className="w-5 h-5" />
+        </motion.button>
+      </div>
+
+      <div className="flex md:hidden items-center gap-2">
+        <ThemeToggle size="sm" />
+        <button
+          className="p-2 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      {/* Mobile Menu Toggle */}
-      <button
-        className="md:hidden p-2 text-slate-600 dark:text-slate-300"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="absolute top-[72px] left-0 w-full glass-card border-b p-4 flex flex-col gap-2 md:hidden"
-        >
-          {navLinks.map((link) => (
-            <button
-              key={link.name}
-              onClick={() => {
-                navigate(link.path);
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <link.icon className="w-5 h-5" />
-              {link.name}
-            </button>
-          ))}
-          <div className="h-px bg-slate-200 dark:bg-slate-700 my-2"></div>
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                {admin?.name?.charAt(0).toUpperCase() || "A"}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 w-full glass-card border-b border-slate-200/70 dark:border-slate-800 p-4 flex flex-col gap-1 md:hidden shadow-2xl"
+          >
+            {navLinks.map((link) => (
+              <button
+                key={link.name}
+                onClick={() => {
+                  navigate(link.path);
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100/90 dark:hover:bg-slate-800/90"
+              >
+                <link.icon className="w-5 h-5 text-violet-600 dark:text-cyan-400" />
+                {link.name}
+              </button>
+            ))}
+            <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+            <div className="flex items-center justify-between px-4 py-2">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center text-white font-bold text-sm">
+                  {admin?.name?.charAt(0).toUpperCase() || "A"}
+                </div>
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                  {admin?.name}
+                </span>
               </div>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                {admin?.name}
-              </span>
             </div>
             <button
-              onClick={() => setIsDark(!isDark)}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              onClick={() => {
+                handleLogout();
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 mt-1"
             >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              <LogOut className="w-5 h-5" />
+              Logout
             </button>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 mt-2"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 };

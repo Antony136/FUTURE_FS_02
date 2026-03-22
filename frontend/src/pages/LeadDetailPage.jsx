@@ -76,7 +76,7 @@ const LeadDetailPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="min-h-screen mesh-bg noise-overlay">
         <Navbar />
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="animate-pulse space-y-8">
@@ -93,7 +93,7 @@ const LeadDetailPage = () => {
 
   if (error || !lead) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+      <div className="min-h-screen mesh-bg noise-overlay">
         <Navbar />
         <div className="flex flex-col items-center justify-center py-32 px-4">
           <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
@@ -102,7 +102,7 @@ const LeadDetailPage = () => {
           <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">{error}</h2>
           <button
             onClick={() => navigate("/leads")}
-            className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+            className="text-violet-600 dark:text-cyan-400 hover:underline font-semibold flex items-center gap-1"
           >
             <ArrowLeft className="w-4 h-4" /> Back to leads
           </button>
@@ -112,7 +112,7 @@ const LeadDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 overflow-x-hidden pb-12">
+    <div className="min-h-screen mesh-bg noise-overlay overflow-x-hidden pb-12">
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
@@ -121,7 +121,7 @@ const LeadDetailPage = () => {
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <button
             onClick={() => navigate("/leads")}
-            className="group flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 mb-8 transition-colors"
+            className="group flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-cyan-400 mb-8 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Back to Leads
@@ -138,12 +138,15 @@ const LeadDetailPage = () => {
             className="md:col-span-1 flex flex-col gap-6"
           >
             {/* Profile Card */}
-            <div className="glass-card rounded-2xl p-6 shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 pointer-events-none" />
+            <motion.div
+              whileHover={{ y: -4, transition: { duration: 0.25 } }}
+              className="glass-card rounded-2xl p-6 shadow-xl shadow-violet-500/5 dark:shadow-none border border-slate-200/80 dark:border-slate-800/80 relative overflow-hidden transition-shadow hover:shadow-violet-500/10 dark:hover:shadow-cyan-500/10"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-50/90 to-cyan-50/40 dark:from-violet-900/15 dark:to-cyan-900/10 pointer-events-none" />
               
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-md">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-600 to-cyan-500 flex items-center justify-center text-white text-xl font-bold shadow-lg ring-2 ring-white/25 dark:ring-slate-900/50">
                     {lead.name.charAt(0).toUpperCase()}
                   </div>
                   <StatusBadge status={lead.status} />
@@ -184,12 +187,14 @@ const LeadDetailPage = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Status Update Card */}
-            <div className="glass-card rounded-2xl p-6 shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800">
+            <motion.div
+              whileHover={{ y: -3 }}
+              className="glass-card rounded-2xl p-6 shadow-lg border border-slate-200/80 dark:border-slate-800/80"
+            >
               <div className="flex items-center gap-2 mb-4">
-                <RefreshCw className={`w-5 h-5 text-blue-500 ${updatingStatus ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-5 h-5 text-violet-600 dark:text-cyan-400 ${updatingStatus ? "animate-spin" : ""}`} />
                 <h3 className="font-semibold text-slate-800 dark:text-white">Update Status</h3>
               </div>
               
@@ -198,7 +203,7 @@ const LeadDetailPage = () => {
                   value={lead.status}
                   onChange={handleStatusChange}
                   disabled={updatingStatus}
-                  className="w-full appearance-none pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer disabled:opacity-50 transition-all shadow-sm"
+                  className="w-full appearance-none pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-500/45 dark:focus:ring-cyan-500/40 cursor-pointer disabled:opacity-50 transition-all shadow-sm"
                 >
                   <option value="new">🆕 New Lead</option>
                   <option value="contacted">📞 Contacted</option>
@@ -206,13 +211,13 @@ const LeadDetailPage = () => {
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                   {updatingStatus ? (
-                    <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-violet-500 dark:border-t-cyan-400 rounded-full animate-spin" />
                   ) : (
                     <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
             
           </motion.div>
 
@@ -224,12 +229,12 @@ const LeadDetailPage = () => {
             transition={{ delay: 0.2 }}
             className="md:col-span-2 flex flex-col h-[calc(100vh-140px)] min-h-[500px]"
           >
-            <div className="glass-card rounded-2xl shadow-lg shadow-slate-200/20 dark:shadow-none border border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+            <div className="glass-card rounded-2xl shadow-xl shadow-violet-500/5 dark:shadow-none border border-slate-200/80 dark:border-slate-800/80 flex flex-col h-full overflow-hidden transition-shadow hover:shadow-2xl hover:shadow-violet-500/10 dark:hover:shadow-cyan-500/5">
               
               {/* Header */}
               <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MessageSquarePlus className="w-5 h-5 text-blue-500" />
+                  <MessageSquarePlus className="w-5 h-5 text-violet-600 dark:text-cyan-400" />
                   <h3 className="font-semibold text-slate-800 dark:text-white">Notes Timeline</h3>
                 </div>
                 <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold px-3 py-1 rounded-full">
@@ -296,14 +301,14 @@ const LeadDetailPage = () => {
                       }
                     }}
                     placeholder="Type a follow-up note... (Press Enter to save)"
-                    className="w-full pl-4 pr-16 py-3 min-h-[56px] max-h-32 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white dark:focus:bg-slate-800 dark:text-white transition-all resize-y shadow-sm"
+                    className="w-full pl-4 pr-16 py-3 min-h-[56px] max-h-32 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/45 dark:focus:ring-cyan-500/40 focus:bg-white dark:focus:bg-slate-800 dark:text-white transition-all resize-y shadow-sm"
                   />
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAddNote}
                     disabled={addingNote || !noteText.trim()}
-                    className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg transition-colors"
+                    className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-gradient-to-br from-violet-600 to-cyan-600 hover:brightness-110 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white rounded-lg transition-all shadow-md"
                   >
                     {addingNote ? (
                       <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />

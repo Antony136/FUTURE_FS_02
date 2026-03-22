@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import API from "../api/axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Filter, Trash2, Eye, MoreVertical, Inbox } from "lucide-react";
+import { Search, Filter, Trash2, Eye, Inbox } from "lucide-react";
 import toast from "react-hot-toast";
 import { StatusBadge } from "./DashboardPage";
 
@@ -84,14 +84,14 @@ const LeadsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 overflow-x-hidden">
+    <div className="min-h-screen mesh-bg noise-overlay overflow-x-hidden">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-6 py-8 md:py-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gradient-brand tracking-tight">
               Lead Management
             </h2>
             <p className="text-slate-500 dark:text-slate-400 mt-2">
@@ -106,21 +106,21 @@ const LeadsPage = () => {
             className="flex flex-col sm:flex-row gap-3 w-full md:w-auto"
           >
             <div className="relative group flex-1 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-violet-500 dark:group-focus-within:text-cyan-400 transition-colors" />
               <input
                 type="text"
                 placeholder="Search by name or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:text-white transition-all shadow-sm"
+                className="w-full pl-9 pr-4 py-2.5 bg-white/90 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/45 dark:focus:ring-cyan-500/40 focus:border-violet-400 dark:focus:border-cyan-500/50 dark:text-white transition-all shadow-sm"
               />
             </div>
             <div className="relative group sm:w-48">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-violet-500 dark:group-focus-within:text-cyan-400 transition-colors" />
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:text-white transition-all shadow-sm appearance-none cursor-pointer"
+                className="w-full pl-9 pr-8 py-2.5 bg-white/90 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/45 dark:focus:ring-cyan-500/40 focus:border-violet-400 dark:focus:border-cyan-500/50 dark:text-white transition-all shadow-sm appearance-none cursor-pointer"
               >
                 <option value="all">All Statuses</option>
                 <option value="new">New</option>
@@ -136,7 +136,7 @@ const LeadsPage = () => {
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass-card rounded-2xl overflow-hidden shadow-xl shadow-slate-200/40 dark:shadow-none border border-slate-200 dark:border-slate-800"
+          className="glass-card rounded-2xl overflow-hidden shadow-2xl shadow-violet-500/5 dark:shadow-none border border-slate-200/80 dark:border-slate-800/80 transition-all duration-300 hover:shadow-[0_24px_60px_-12px_rgba(109,40,217,0.12)] dark:hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,0.08)]"
         >
           {loading ? (
             <div className="flex flex-col gap-4 p-6">
@@ -179,7 +179,7 @@ const LeadsPage = () => {
                         transition={{ delay: index * 0.05 }}
                         key={lead._id}
                         onClick={() => navigate(`/leads/${lead._id}`)}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors group"
+                        className="hover:bg-slate-50/95 dark:hover:bg-slate-800/55 cursor-pointer transition-all duration-200 group hover:shadow-[inset_3px_0_0_0_rgba(109,40,217,0.45)] dark:hover:shadow-[inset_3px_0_0_0_rgba(34,211,238,0.4)]"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -227,7 +227,7 @@ const LeadsPage = () => {
                                 e.stopPropagation();
                                 navigate(`/leads/${lead._id}`);
                               }}
-                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-500/10 dark:hover:text-cyan-400 rounded-lg transition-colors"
                               title="View Details"
                             >
                               <Eye className="w-4 h-4" />
