@@ -7,6 +7,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LeadsPage from "./pages/LeadsPage";
 import LeadDetailPage from "./pages/LeadDetailPage";
 import LandingPage from "./pages/LandingPage";
+import ProfilePage from "./pages/ProfilePage";
 import { Toaster } from "react-hot-toast";
 
 function App() {
@@ -21,9 +22,7 @@ function App() {
               className:
                 "!bg-[var(--toast-bg)] !text-[var(--toast-fg)] !border !border-[var(--toast-border)] !shadow-xl !rounded-xl",
               duration: 4000,
-              style: {
-                backdropFilter: "blur(12px)",
-              },
+              style: { backdropFilter: "blur(12px)" },
             }}
           />
           <Routes>
@@ -32,32 +31,20 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
 
             {/* Protected */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads"
-              element={
-                <ProtectedRoute>
-                  <LeadsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads/:id"
-              element={
-                <ProtectedRoute>
-                  <LeadDetailPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/dashboard" element={
+              <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            } />
+            <Route path="/leads" element={
+              <ProtectedRoute><LeadsPage /></ProtectedRoute>
+            } />
+            <Route path="/leads/:id" element={
+              <ProtectedRoute><LeadDetailPage /></ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute><ProfilePage /></ProtectedRoute>
+            } />
 
-            {/* Default redirect to landing */}
+            {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

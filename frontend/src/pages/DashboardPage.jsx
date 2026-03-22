@@ -5,12 +5,11 @@ import API from "../api/axios";
 import { motion } from "framer-motion";
 import {
   Users, UserPlus, PhoneCall, CheckCircle2,
-  ChevronRight, TrendingUp, Activity,
+  ChevronRight, Download,
 } from "lucide-react";
 import {
   AreaChart, Area,
   LineChart, Line,
-  BarChart, Bar,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   FunnelChart, Funnel, LabelList,
   ResponsiveContainer,
@@ -18,32 +17,24 @@ import {
   Tooltip, Legend,
   Cell,
 } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import toast from "react-hot-toast";
 
-// ─── Constants ───────────────────────────────────────────────
-
-const STATUS_COLORS = {
-  new: "#7c3aed",
-  contacted: "#f97316",
-  converted: "#10b981",
-};
-
+// ─── Constants ────────────────────────────────────────────────
 const MONTHS_SHOWN = 6;
 
 // ─── Data helpers ─────────────────────────────────────────────
-
 const formatMonth = (dateStr) =>
   new Date(dateStr).toLocaleDateString("en-IN", {
-    month: "short",
-    year: "2-digit",
+    month: "short", year: "2-digit",
   });
 
-// Sorted unique months from leads
 const getSortedMonths = (leads) => {
   const set = new Set(leads.map((l) => formatMonth(l.createdAt)));
   return [...set].slice(-MONTHS_SHOWN);
 };
 
-// Cumulative total leads by month
 const getCumulativeData = (leads) => {
   const map = {};
   leads.forEach((l) => {
@@ -55,11 +46,10 @@ const getCumulativeData = (leads) => {
     .slice(-MONTHS_SHOWN)
     .map(([month, count]) => {
       running += count;
-      return { month, total: running, new: count };
+      return { month, total: running };
     });
 };
 
-// Monthly conversion % trend
 const getConversionTrend = (leads) => {
   const map = {};
   leads.forEach((l) => {
@@ -76,7 +66,6 @@ const getConversionTrend = (leads) => {
     }));
 };
 
-// Multi-line: new, contacted, converted per month
 const getMultiLineTrend = (leads) => {
   const map = {};
   leads.forEach((l) => {
@@ -87,26 +76,23 @@ const getMultiLineTrend = (leads) => {
   return Object.values(map).slice(-MONTHS_SHOWN);
 };
 
-// Funnel data
 const getFunnelData = (total, contacted, converted) => [
-  { name: "Total leads", value: total, fill: "#7c3aed" },
-  { name: "Contacted", value: contacted, fill: "#f97316" },
-  { name: "Converted", value: converted, fill: "#10b981" },
+  { name: "Total leads", value: total,     fill: "#7c3aed" },
+  { name: "Contacted",   value: contacted, fill: "#f97316" },
+  { name: "Converted",   value: converted, fill: "#10b981" },
 ];
 
-// Radar data
 const getRadarData = (total, contacted, converted, notes, sources) => {
   const max = Math.max(total, 1);
   return [
     { metric: "Total leads", value: Math.round((total / max) * 100) },
-    { metric: "Contacted", value: total > 0 ? Math.round((contacted / total) * 100) : 0 },
-    { metric: "Converted", value: total > 0 ? Math.round((converted / total) * 100) : 0 },
-    { metric: "Follow-ups", value: Math.min(notes * 10, 100) },
-    { metric: "Sources", value: Math.min(sources * 20, 100) },
+    { metric: "Contacted",   value: total > 0 ? Math.round((contacted / total) * 100) : 0 },
+    { metric: "Converted",   value: total > 0 ? Math.round((converted / total) * 100) : 0 },
+    { metric: "Follow-ups",  value: Math.min(notes * 10, 100) },
+    { metric: "Sources",     value: Math.min(sources * 20, 100) },
   ];
 };
 
-// Sparkline data per stat (last 6 months count)
 const getSparkline = (leads, filterFn) => {
   const map = {};
   leads.filter(filterFn).forEach((l) => {
@@ -116,7 +102,6 @@ const getSparkline = (leads, filterFn) => {
   return getSortedMonths(leads).map((m) => ({ v: map[m] || 0 }));
 };
 
-// Timeline — last 8 events across all leads
 const getTimeline = (leads) => {
   const events = [];
   leads.forEach((lead) => {
@@ -137,13 +122,330 @@ const getTimeline = (leads) => {
       });
     });
   });
-  return events
-    .sort((a, b) => b.time - a.time)
-    .slice(0, 8);
+  return events.sort((a, b) => b.time - a.time).slice(0, 8);
 };
 
-// ─── Shared UI components ─────────────────────────────────────
+// ─── PDF export — data-driven, no DOM screenshotting ──────────
+const exportDashboardPDF = (leads, stats) => {
+  const { total, newLeads, contacted, converted, conversionRate } = stats;
 
+  if (total === 0) {
+    toast.error("No leads to export");
+    return;
+  }
+
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const today = new Date().toLocaleDateString("en-IN", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+  const pageW = doc.internal.pageSize.getWidth();
+
+  // ── Header bar ─────────────────────────────────────────────
+  doc.setFillColor(109, 40, 217);
+  doc.rect(0, 0, pageW, 28, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("Mini CRM — Dashboard Report", 14, 17);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Generated: ${today}`, pageW - 14, 17, { align: "right" });
+
+  // ── Stat boxes ─────────────────────────────────────────────
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Lead Summary", 14, 40);
+
+  const statBoxes = [
+    { label: "Total leads",     value: total,               color: [124, 58,  237] },
+    { label: "New",             value: newLeads,             color: [6,   182, 212] },
+    { label: "Contacted",       value: contacted,            color: [249, 115, 22]  },
+    { label: "Converted",       value: converted,            color: [16,  185, 129] },
+    { label: "Conversion rate", value: `${conversionRate}%`, color: [16,  185, 129] },
+  ];
+
+  const boxW = (pageW - 28) / statBoxes.length;
+
+  statBoxes.forEach((s, i) => {
+    const x = 14 + i * boxW;
+
+    // Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(x, 44, boxW - 2, 22, 2, 2, "FD");
+
+    // Color top accent
+    doc.setFillColor(...s.color);
+    doc.roundedRect(x, 44, boxW - 2, 2.5, 1, 1, "F");
+
+    // Value
+    doc.setTextColor(...s.color);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(String(s.value), x + (boxW - 2) / 2, 54, { align: "center" });
+
+    // Label
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(s.label, x + (boxW - 2) / 2, 61, { align: "center" });
+  });
+
+  // ── Pipeline funnel bars ────────────────────────────────────
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Sales Pipeline", 14, 80);
+
+  const funnelStages = [
+    { label: "Total leads", value: total,     pct: 100, color: [124, 58, 237] },
+    {
+      label: "Contacted",
+      value: contacted,
+      pct: total > 0 ? Math.round((contacted / total) * 100) : 0,
+      color: [249, 115, 22],
+    },
+    {
+      label: "Converted",
+      value: converted,
+      pct: total > 0 ? Math.round((converted / total) * 100) : 0,
+      color: [16, 185, 129],
+    },
+  ];
+
+  const barMaxW = pageW - 60;
+  funnelStages.forEach((stage, i) => {
+    const y = 85 + i * 11;
+    const filledW = Math.max((stage.pct / 100) * barMaxW, stage.value > 0 ? 4 : 0);
+
+    doc.setTextColor(51, 65, 85);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(stage.label, 14, y + 4.5);
+
+    // Track
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(46, y, barMaxW, 6, 1.5, 1.5, "F");
+
+    // Fill
+    if (filledW > 0) {
+      doc.setFillColor(...stage.color);
+      doc.roundedRect(46, y, filledW, 6, 1.5, 1.5, "F");
+    }
+
+    // Label
+    doc.setTextColor(...stage.color);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `${stage.value}  (${stage.pct}%)`,
+      pageW - 14,
+      y + 4.5,
+      { align: "right" }
+    );
+  });
+
+  // ── Monthly breakdown table ─────────────────────────────────
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Monthly Breakdown (last 6 months)", 14, 122);
+
+  const monthMap = {};
+  leads.forEach((l) => {
+    const key = formatMonth(l.createdAt);
+    if (!monthMap[key]) monthMap[key] = { new: 0, contacted: 0, converted: 0, total: 0 };
+    monthMap[key][l.status] += 1;
+    monthMap[key].total += 1;
+  });
+
+  const monthRows = Object.entries(monthMap)
+    .slice(-6)
+    .map(([month, d]) => [
+      month,
+      d.total,
+      d.new,
+      d.contacted,
+      d.converted,
+      d.total > 0 ? `${Math.round((d.converted / d.total) * 100)}%` : "0%",
+    ]);
+
+  autoTable(doc, {
+    startY: 126,
+    head: [["Month", "Total", "New", "Contacted", "Converted", "Conv. Rate"]],
+    body: monthRows,
+    theme: "grid",
+    headStyles: {
+      fillColor: [109, 40, 217],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 8.5,
+      halign: "center",
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      halign: "center",
+      textColor: [51, 65, 85],
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { halign: "left", fontStyle: "bold" },
+      5: { textColor: [16, 185, 129], fontStyle: "bold" },
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Source breakdown table ──────────────────────────────────
+  const afterMonthly = doc.lastAutoTable?.finalY ?? 180;
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Lead Sources", 14, afterMonthly + 12);
+
+  const sourceMap = {};
+  leads.forEach((l) => {
+    sourceMap[l.source] = (sourceMap[l.source] || 0) + 1;
+  });
+
+  const sourceRows = Object.entries(sourceMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([source, count]) => [
+      source,
+      count,
+      total > 0 ? `${Math.round((count / total) * 100)}%` : "0%",
+    ]);
+
+  autoTable(doc, {
+    startY: afterMonthly + 16,
+    head: [["Source", "Count", "Share %"]],
+    body: sourceRows,
+    theme: "grid",
+    headStyles: {
+      fillColor: [6, 182, 212],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 8.5,
+      halign: "center",
+    },
+    bodyStyles: {
+      fontSize: 8.5,
+      halign: "center",
+      textColor: [51, 65, 85],
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { halign: "left", fontStyle: "bold" },
+      2: { textColor: [6, 182, 212], fontStyle: "bold" },
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Recent leads table (new page if needed) ─────────────────
+  const afterSource = doc.lastAutoTable?.finalY ?? 230;
+  const needsNewPage = afterSource > 210;
+
+  if (needsNewPage) {
+    doc.addPage();
+  }
+
+  const leadsStartY = needsNewPage ? 20 : afterSource + 14;
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Recent Leads (last 20)", 14, leadsStartY);
+
+  const recentRows = leads.slice(0, 20).map((l) => [
+    l.name,
+    l.email,
+    l.phone || "—",
+    l.source,
+    l.status.toUpperCase(),
+    l.notes?.length || 0,
+    new Date(l.createdAt).toLocaleDateString("en-IN", {
+      day: "numeric", month: "short", year: "numeric",
+    }),
+  ]);
+
+  autoTable(doc, {
+    startY: leadsStartY + 4,
+    head: [["Name", "Email", "Phone", "Source", "Status", "Notes", "Added"]],
+    body: recentRows,
+    theme: "grid",
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 7.5,
+    },
+    bodyStyles: {
+      fontSize: 7,
+      textColor: [51, 65, 85],
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { fontStyle: "bold" },
+      4: { fontStyle: "bold", halign: "center" },
+      5: { halign: "center" },
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || data.column.index !== 4) return;
+      const status = String(data.cell.raw).toLowerCase();
+      const colorMap = {
+        new:       [124, 58,  237],
+        contacted: [249, 115, 22],
+        converted: [16,  185, 129],
+      };
+      const col = colorMap[status];
+      if (!col) return;
+      doc.setTextColor(...col);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        data.cell.raw,
+        data.cell.x + data.cell.width / 2,
+        data.cell.y + data.cell.height / 2 + 0.8,
+        { align: "center" }
+      );
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  // ── Footer on every page ────────────────────────────────────
+  const totalPages = doc.internal.getNumberOfPages();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(0, pageH - 9, pageW, 9, "F");
+    doc.setDrawColor(226, 232, 240);
+    doc.line(0, pageH - 9, pageW, pageH - 9);
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `Mini CRM Dashboard Report  •  ${today}`,
+      14,
+      pageH - 3
+    );
+    doc.text(
+      `Page ${p} of ${totalPages}`,
+      pageW - 14,
+      pageH - 3,
+      { align: "right" }
+    );
+  }
+
+  doc.save(`mini-crm-report_${new Date().toISOString().slice(0, 10)}.pdf`);
+  toast.success("PDF report downloaded");
+};
+
+// ─── Shared UI ────────────────────────────────────────────────
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -184,29 +486,25 @@ const Empty = ({ text = "Not enough data yet." }) => (
   </div>
 );
 
-// Sparkline inside stat card
 const Sparkline = ({ data, color }) => (
   <ResponsiveContainer width="100%" height={40}>
     <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
       <defs>
-        <linearGradient id={`sg-${color}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+        <linearGradient id={`sg-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%"  stopColor={color} stopOpacity={0.3} />
           <stop offset="95%" stopColor={color} stopOpacity={0} />
         </linearGradient>
       </defs>
       <Area
-        type="monotone"
-        dataKey="v"
-        stroke={color}
-        strokeWidth={1.5}
-        fill={`url(#sg-${color})`}
+        type="monotone" dataKey="v"
+        stroke={color} strokeWidth={1.5}
+        fill={`url(#sg-${color.replace("#", "")})`}
         dot={false}
       />
     </AreaChart>
   </ResponsiveContainer>
 );
 
-// Stat card with sparkline
 const StatCard = ({ label, value, color, icon: Icon, delay, sparkData, sparkColor }) => (
   <motion.div
     initial={{ opacity: 0, y: 24 }}
@@ -227,14 +525,13 @@ const StatCard = ({ label, value, color, icon: Icon, delay, sparkData, sparkColo
       </p>
       <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{label}</p>
     </div>
-    {/* Sparkline */}
     {sparkData && <Sparkline data={sparkData} color={sparkColor} />}
   </motion.div>
 );
 
 export const StatusBadge = ({ status }) => {
   const styles = {
-    new: "bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-300 border border-violet-200 dark:border-violet-500/30",
+    new:       "bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-300 border border-violet-200 dark:border-violet-500/30",
     contacted: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30",
     converted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30",
   };
@@ -246,7 +543,6 @@ export const StatusBadge = ({ status }) => {
 };
 
 // ─── Main dashboard ───────────────────────────────────────────
-
 const DashboardPage = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -266,26 +562,23 @@ const DashboardPage = () => {
     fetchLeads();
   }, []);
 
-  // Core stats
-  const total = leads.length;
-  const newLeads = leads.filter((l) => l.status === "new").length;
-  const contacted = leads.filter((l) => l.status === "contacted").length;
-  const converted = leads.filter((l) => l.status === "converted").length;
+  const total          = leads.length;
+  const newLeads       = leads.filter((l) => l.status === "new").length;
+  const contacted      = leads.filter((l) => l.status === "contacted").length;
+  const converted      = leads.filter((l) => l.status === "converted").length;
   const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
-  const totalNotes = leads.reduce((acc, l) => acc + (l.notes?.length || 0), 0);
-  const uniqueSources = new Set(leads.map((l) => l.source)).size;
+  const totalNotes     = leads.reduce((acc, l) => acc + (l.notes?.length || 0), 0);
+  const uniqueSources  = new Set(leads.map((l) => l.source)).size;
 
-  // Chart data
-  const cumulativeData = getCumulativeData(leads);
+  const cumulativeData  = getCumulativeData(leads);
   const conversionTrend = getConversionTrend(leads);
-  const multiLineData = getMultiLineTrend(leads);
-  const funnelData = getFunnelData(total, contacted, converted);
-  const radarData = getRadarData(total, contacted, converted, totalNotes, uniqueSources);
-  const timeline = getTimeline(leads);
+  const multiLineData   = getMultiLineTrend(leads);
+  const funnelData      = getFunnelData(total, contacted, converted);
+  const radarData       = getRadarData(total, contacted, converted, totalNotes, uniqueSources);
+  const timeline        = getTimeline(leads);
 
-  // Sparklines
-  const sparkAll = getSparkline(leads, () => true);
-  const sparkNew = getSparkline(leads, (l) => l.status === "new");
+  const sparkAll       = getSparkline(leads, () => true);
+  const sparkNew       = getSparkline(leads, (l) => l.status === "new");
   const sparkContacted = getSparkline(leads, (l) => l.status === "contacted");
   const sparkConverted = getSparkline(leads, (l) => l.status === "converted");
 
@@ -308,21 +601,35 @@ const DashboardPage = () => {
 
       <main className="max-w-7xl mx-auto px-6 py-8 md:py-12">
 
-        {/* Page header */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="mb-10"
-        >
-          <h2 className="text-3xl md:text-4xl font-extrabold text-gradient-brand tracking-tight">
-            Dashboard Overview
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400 mt-2 text-base">
-            Here&apos;s what&apos;s happening with your clients today.
-          </p>
-        </motion.div>
+        {/* ── Page header ── */}
+        <div className="flex items-start justify-between mb-10 gap-4 flex-wrap">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gradient-brand tracking-tight">
+              Dashboard Overview
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 mt-2 text-base">
+              Here&apos;s what&apos;s happening with your clients today.
+            </p>
+          </motion.div>
 
-        {/* ── Row 1: Stat cards with sparklines ── */}
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() =>
+              exportDashboardPDF(leads, {
+                total, newLeads, contacted, converted, conversionRate,
+              })
+            }
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50 rounded-xl hover:border-violet-400/60 dark:hover:border-cyan-500/40 hover:shadow-sm transition-all flex-shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            Export PDF
+          </motion.button>
+        </div>
+
+        {/* ── Row 1: Stat cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard label="Total leads" value={total} icon={Users} delay={0.1}
             sparkData={sparkAll} sparkColor="#7c3aed"
@@ -338,65 +645,40 @@ const DashboardPage = () => {
             color={{ bg: "bg-emerald-100 dark:bg-emerald-500/20", text: "text-emerald-600 dark:text-emerald-400" }} />
         </div>
 
-        {/* ── Row 2: Funnel + Cumulative growth ── */}
+        {/* ── Row 2: Funnel + Cumulative ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-          {/* Funnel chart */}
-          <ChartCard
-            title="Sales pipeline funnel"
-            subtitle="Lead drop-off at each stage"
-            delay={0.5}
-            span={1}
-          >
+          <ChartCard title="Sales pipeline funnel" subtitle="Lead drop-off at each stage" delay={0.5} span={1}>
             {total === 0 ? <Empty /> : (
-              <ResponsiveContainer width="100%" height={220}>
-                <FunnelChart>
-                  <Tooltip content={<ChartTooltip />} />
-                  <Funnel
-                    dataKey="value"
-                    data={funnelData}
-                    isAnimationActive
-                    label={{ fill: "#fff", fontSize: 12, fontWeight: 600 }}
-                  >
-                    <LabelList
-                      position="center"
-                      fill="#fff"
-                      fontSize={12}
-                      fontWeight={700}
-                      formatter={(v) => v}
-                    />
-                    {funnelData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Funnel>
-                </FunnelChart>
-              </ResponsiveContainer>
-            )}
-            {/* Drop-off labels */}
-            {total > 0 && (
-              <div className="flex justify-around mt-2 text-xs text-slate-500">
-                <span className="text-violet-600 font-semibold">{total} leads</span>
-                <span>→</span>
-                <span className="text-orange-500 font-semibold">{contacted} contacted</span>
-                <span>→</span>
-                <span className="text-emerald-600 font-semibold">{converted} converted</span>
-              </div>
+              <>
+                <ResponsiveContainer width="100%" height={220}>
+                  <FunnelChart>
+                    <Tooltip content={<ChartTooltip />} />
+                    <Funnel dataKey="value" data={funnelData} isAnimationActive>
+                      <LabelList position="center" fill="#fff" fontSize={12} fontWeight={700} formatter={(v) => v} />
+                      {funnelData.map((entry, i) => (
+                        <Cell key={i} fill={entry.fill} />
+                      ))}
+                    </Funnel>
+                  </FunnelChart>
+                </ResponsiveContainer>
+                <div className="flex justify-around mt-2 text-xs">
+                  <span className="text-violet-600 font-semibold">{total} leads</span>
+                  <span className="text-slate-400">→</span>
+                  <span className="text-orange-500 font-semibold">{contacted} contacted</span>
+                  <span className="text-slate-400">→</span>
+                  <span className="text-emerald-600 font-semibold">{converted} converted</span>
+                </div>
+              </>
             )}
           </ChartCard>
 
-          {/* Cumulative growth */}
-          <ChartCard
-            title="Cumulative lead growth"
-            subtitle="Running total of leads over time"
-            delay={0.6}
-            span={2}
-          >
+          <ChartCard title="Cumulative lead growth" subtitle="Running total of leads over time" delay={0.6} span={2}>
             {cumulativeData.length < 2 ? <Empty /> : (
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={cumulativeData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="cumGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.25} />
+                      <stop offset="5%"  stopColor="#7c3aed" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
                     </linearGradient>
                   </defs>
@@ -421,16 +703,9 @@ const DashboardPage = () => {
           </ChartCard>
         </div>
 
-        {/* ── Row 3: Multi-line trend + Conversion trend ── */}
+        {/* ── Row 3: Multi-line + Conversion trend ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-          {/* Multi-line: new vs contacted vs converted */}
-          <ChartCard
-            title="Status trends over time"
-            subtitle="New, contacted and converted leads per month"
-            delay={0.7}
-            span={2}
-          >
+          <ChartCard title="Status trends over time" subtitle="New, contacted and converted leads per month" delay={0.7} span={2}>
             {multiLineData.length < 2 ? <Empty /> : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={multiLineData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -446,7 +721,7 @@ const DashboardPage = () => {
                     iconType="circle" iconSize={8}
                     formatter={(v) => <span style={{ fontSize: 12, color: "#64748b", textTransform: "capitalize" }}>{v}</span>}
                   />
-                  <Line type="monotone" dataKey="new" name="New" stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="new"       name="New"       stroke="#7c3aed" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="contacted" name="Contacted" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="converted" name="Converted" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                 </LineChart>
@@ -454,19 +729,13 @@ const DashboardPage = () => {
             )}
           </ChartCard>
 
-          {/* Conversion % trend */}
-          <ChartCard
-            title="Conversion rate trend"
-            subtitle="Monthly conversion % over time"
-            delay={0.8}
-            span={1}
-          >
+          <ChartCard title="Conversion rate trend" subtitle="Monthly conversion % over time" delay={0.8} span={1}>
             {conversionTrend.length < 2 ? <Empty /> : (
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={conversionTrend} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="convGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop offset="5%"  stopColor="#10b981" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                     </linearGradient>
                   </defs>
@@ -493,36 +762,22 @@ const DashboardPage = () => {
           </ChartCard>
         </div>
 
-        {/* ── Row 4: Radar + Timeline activity feed ── */}
+        {/* ── Row 4: Radar + Timeline ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-          {/* Radar chart */}
-          <ChartCard
-            title="Performance radar"
-            subtitle="Overall CRM health across key metrics (0–100 scale)"
-            delay={0.9}
-            span={1}
-          >
+          <ChartCard title="Performance radar" subtitle="Overall CRM health across key metrics (0–100 scale)" delay={0.9} span={1}>
             {total === 0 ? <Empty /> : (
               <ResponsiveContainer width="100%" height={240}>
                 <RadarChart data={radarData} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
                   <PolarGrid stroke="#e2e8f0" />
-                  <PolarAngleAxis
-                    dataKey="metric"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
-                  />
+                  <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11, fill: "#64748b" }} />
                   <PolarRadiusAxis
-                    angle={90}
-                    domain={[0, 100]}
+                    angle={90} domain={[0, 100]}
                     tick={{ fontSize: 10, fill: "#94a3b8" }}
                     tickFormatter={(v) => `${v}`}
                   />
                   <Radar
-                    name="Performance"
-                    dataKey="value"
-                    stroke="#7c3aed"
-                    fill="#7c3aed"
-                    fillOpacity={0.2}
+                    name="Performance" dataKey="value"
+                    stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.2}
                     dot={{ r: 3, fill: "#7c3aed" }}
                   />
                   <Tooltip content={<ChartTooltip />} />
@@ -531,14 +786,7 @@ const DashboardPage = () => {
             )}
           </ChartCard>
 
-          {/* Timeline activity feed */}
-          <ChartCard
-            title="Activity timeline"
-            subtitle="Latest events across all leads"
-            delay={1.0}
-            span={2}
-            minH={300}
-          >
+          <ChartCard title="Activity timeline" subtitle="Latest events across all leads" delay={1.0} span={2} minH={300}>
             {timeline.length === 0 ? (
               <Empty text="No activity yet." />
             ) : (
@@ -551,14 +799,12 @@ const DashboardPage = () => {
                     transition={{ delay: 1.0 + i * 0.06 }}
                     className="flex items-start gap-3"
                   >
-                    {/* Dot + line */}
                     <div className="flex flex-col items-center">
                       <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${event.color}`} />
                       {i < timeline.length - 1 && (
                         <div className="w-px flex-1 bg-slate-200 dark:bg-slate-700 mt-1 min-h-[20px]" />
                       )}
                     </div>
-                    {/* Content */}
                     <div className="pb-3">
                       <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">
                         {event.label}
@@ -597,6 +843,7 @@ const DashboardPage = () => {
               <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
+
           <div className="p-2">
             {leads.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
@@ -615,7 +862,7 @@ const DashboardPage = () => {
                     className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50/90 dark:hover:bg-slate-800/60 cursor-pointer transition-all group border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700/50"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-200 to-cyan-200 dark:from-violet-900/50 dark:to-cyan-900/40 flex items-center justify-center text-violet-700 dark:text-cyan-300 font-bold text-sm shadow-inner">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-200 to-cyan-200 dark:from-violet-900/50 dark:to-cyan-900/40 flex items-center justify-center text-violet-700 dark:text-cyan-300 font-bold text-sm">
                         {lead.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
